@@ -10,17 +10,32 @@ public class WeaponController : NetworkBehaviour
     bool attackButtonDown = false;
     bool isAttacking = false;
     bool isOnCooldown = false;
-    [SerializeField] float attackCooldown = .5f;
 
+    [Header("Variables")]
+    [SerializeField] float attackCooldown = .5f;
+    
+    [Header("References")]
+    [SerializeField] GameObject serverProjectilePrefab;
+    [SerializeField] GameObject clientProjectilePrefab;
+    [SerializeField] Transform projectileSpawnTransform;
+    
     private void Awake() {
         playerControls = new PlayerControls();
     }
 
-    private void Start() {
+    public override void OnNetworkSpawn()
+    {
+        if(!IsOwner) {return;}
         playerControls.Combat.PrimaryFire.started += _ => StartAttacking();
         playerControls.Combat.PrimaryFire.canceled += _ => StopAttacking();
     }
 
+    public override void OnNetworkDespawn()
+    {
+        if(!IsOwner) {return;}
+        playerControls.Combat.PrimaryFire.started -= _ => StartAttacking();
+        playerControls.Combat.PrimaryFire.canceled -= _ => StopAttacking();
+    }
     private void FixedUpdate() {
         if(!IsOwner) {return;}
         FaceMouse();
@@ -60,27 +75,51 @@ public class WeaponController : NetworkBehaviour
             if(!isAttacking && !isOnCooldown)
             {
                 isAttacking = true;
-                Debug.Log("Fire!");
+                isOnCooldown = true;
+                SpawnServerRpc(projectileSpawnTransform.position, this.transform.up);
+                SpawnDummyProjectile(projectileSpawnTransform.position, this.transform.up);
                 isAttacking = false;
                 StartCoroutine(AttackCooldownRoutine());
             }
         }
     }
 
+    private void SpawnDummyProjectile(Vector3 spawnPos, Vector3 direction)
+    {
+        Debug.Log("Spawning Dummy Projectile");
+        GameObject projectileInstance = Instantiate(
+                            clientProjectilePrefab,
+                            spawnPos,
+                            Quaternion.identity
+                            );
+        projectileInstance.transform.up = direction;
+    }
+
+    [ServerRpc]
+    private void SpawnServerRpc(Vector3 spawnPos, Vector3 direction)
+    {
+        GameObject projectileInstance = Instantiate(
+                            serverProjectilePrefab,
+                            spawnPos,
+                            Quaternion.identity
+                            );
+        projectileInstance.transform.up = direction;
+        SpawnClientRpc(spawnPos, direction);
+    }
+
+    [ClientRpc]
+    private void SpawnClientRpc(Vector3 spawnPos, Vector3 direction)
+    {
+        if(IsOwner) return;
+
+        SpawnDummyProjectile(spawnPos, direction);
+    }
+
     private IEnumerator AttackCooldownRoutine()
     {
-        isOnCooldown = true;
+        
         yield return new WaitForSeconds(attackCooldown);
         isOnCooldown = false;
     }
 
-    public override void OnNetworkSpawn()
-    {
-        if(!IsOwner) {return;}
-    }
-
-    public override void OnNetworkDespawn()
-    {
-        if(!IsOwner) {return;}
-    }
 }

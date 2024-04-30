@@ -7,20 +7,20 @@ using UnityEngine.InputSystem;
 
 public class PlayerController : NetworkBehaviour
 {
-    [Header("Input Variables")]
+    [Header("Variables")]
     [SerializeField] float movementSpeed = 4f;
     [SerializeField] float turningRate = 180f;
+    
+    [Header("References")]
+    [SerializeField] Rigidbody2D myRigidbody;
+    [SerializeField] Transform treadsTrans;
 
     PlayerControls playerControls;
     Vector2 movementInput;
-    Rigidbody2D myRigidbody;
-    Transform treadsTrans;
 
 
     private void Awake() {
         playerControls = new PlayerControls();
-        treadsTrans = this.transform.GetChild(0);
-        myRigidbody = GetComponent<Rigidbody2D>();
     }
 
 
