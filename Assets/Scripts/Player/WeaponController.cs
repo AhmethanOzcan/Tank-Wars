@@ -10,14 +10,18 @@ public class WeaponController : NetworkBehaviour
     bool attackButtonDown = false;
     bool isAttacking = false;
     bool isOnCooldown = false;
+    float muzzleFlashTimer = 0f;
 
     [Header("Variables")]
     [SerializeField] float attackCooldown = .5f;
+    [SerializeField] float muzzleFlashDuration = .1f;
     
     [Header("References")]
     [SerializeField] GameObject serverProjectilePrefab;
     [SerializeField] GameObject clientProjectilePrefab;
     [SerializeField] Transform projectileSpawnTransform;
+    [SerializeField] GameObject muzzleFlash;
+    [SerializeField] Collider2D playerCollider;
     
     private void Awake() {
         playerControls = new PlayerControls();
@@ -36,10 +40,26 @@ public class WeaponController : NetworkBehaviour
         playerControls.Combat.PrimaryFire.started -= _ => StartAttacking();
         playerControls.Combat.PrimaryFire.canceled -= _ => StopAttacking();
     }
-    private void FixedUpdate() {
-        if(!IsOwner) {return;}
+    private void FixedUpdate()
+    {
+        MuzzleFlashHandler();
+
+        if (!IsOwner) { return; }
         FaceMouse();
         Fire();
+    }
+
+    private void MuzzleFlashHandler()
+    {
+        if (muzzleFlashTimer > 0)
+        {
+            muzzleFlash.SetActive(true);
+            muzzleFlashTimer -= Time.deltaTime;
+            if (muzzleFlashTimer <= 0)
+            {
+                muzzleFlash.SetActive(false);
+            }
+        }
     }
 
     private void OnEnable() {
@@ -76,6 +96,7 @@ public class WeaponController : NetworkBehaviour
             {
                 isAttacking = true;
                 isOnCooldown = true;
+                muzzleFlashTimer = muzzleFlashDuration;
                 SpawnServerRpc(projectileSpawnTransform.position, this.transform.up);
                 SpawnDummyProjectile(projectileSpawnTransform.position, this.transform.up);
                 isAttacking = false;
@@ -86,13 +107,13 @@ public class WeaponController : NetworkBehaviour
 
     private void SpawnDummyProjectile(Vector3 spawnPos, Vector3 direction)
     {
-        Debug.Log("Spawning Dummy Projectile");
         GameObject projectileInstance = Instantiate(
                             clientProjectilePrefab,
                             spawnPos,
                             Quaternion.identity
                             );
         projectileInstance.transform.up = direction;
+        Physics2D.IgnoreCollision(playerCollider, projectileInstance.GetComponent<Collider2D>());
     }
 
     [ServerRpc]
@@ -104,6 +125,7 @@ public class WeaponController : NetworkBehaviour
                             Quaternion.identity
                             );
         projectileInstance.transform.up = direction;
+        Physics2D.IgnoreCollision(playerCollider, projectileInstance.GetComponent<Collider2D>());
         SpawnClientRpc(spawnPos, direction);
     }
 
