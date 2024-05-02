@@ -126,6 +126,12 @@ public class WeaponController : NetworkBehaviour
                             );
         projectileInstance.transform.up = direction;
         Physics2D.IgnoreCollision(playerCollider, projectileInstance.GetComponent<Collider2D>());
+        
+        if(projectileInstance.TryGetComponent<DealDamageOnContact>(out DealDamageOnContact dealDamage))
+        {
+            dealDamage.SetOwner(OwnerClientId);
+        }
+        
         SpawnClientRpc(spawnPos, direction);
     }
 
